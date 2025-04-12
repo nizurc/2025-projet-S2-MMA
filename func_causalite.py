@@ -3,12 +3,14 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 
+#-----------------------------------------------------------
 def sigmoid(x): # Définition de la fonction sigmoïde
     return 1 / (1 + np.exp(-x))
 
-def regLogY(df):
+#-----------------------------------------------------------
+def regLogY(df): # régréssion logistique OR
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y'])
+    X = df.drop(columns=['Y','EY0','EY1'])
     Y = df['Y']
 
     # Initialiser et entraîner le modèle
@@ -28,9 +30,10 @@ def regLogY(df):
     tau_est = Y1_pred.mean()-Y0_pred.mean()
     return tau_est
 
+#-----------------------------------------------------------
 def regArbY(df):
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y'])
+    X = df.drop(columns=['Y','EY0','EY1'])
     Y = df['Y']
 
     # Initialiser et entraîner le modèle
@@ -50,9 +53,10 @@ def regArbY(df):
     tau_est = Y1_pred.mean()-Y0_pred.mean()
     return tau_est
 
+#-----------------------------------------------------------
 def regLogE(df):
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y','Z'])
+    X = df.drop(columns=['Y','Z','EY0','EY1'])
     Z = df['Z']
     Y = df['Y']
     
@@ -66,9 +70,10 @@ def regLogE(df):
     tau_est =  np.sum(Z * Y / e_pred) / np.sum(Z / e_pred) - np.sum((1-Z) * Y / (1-e_pred)) / np.sum((1-Z) / (1-e_pred))
     return tau_est, e_pred
 
+#-----------------------------------------------------------
 def regArbE(df):
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y','Z'])
+    X = df.drop(columns=['Y','Z','EY0','EY1'])
     Z = df['Z']
     Y = df['Y']
     
@@ -82,8 +87,9 @@ def regArbE(df):
     tau_est =  np.sum(Z * Y / e_pred) / np.sum(Z / e_pred) - np.sum((1-Z) * Y / (1-e_pred)) / np.sum((1-Z) / (1-e_pred))
     return tau_est, e_pred
 
+#-----------------------------------------------------------
 def genData(Nobs,alpha_tau,alpha_eZ,alpha_eY,alphaCross_eZ,alphaCross_eY):
-    PX = 0.6 # probabilité qu'une covariable vaille 1
+    PX = 1/2 # probabilité qu'une covariable vaille 1
     NX = np.size(alpha_eZ) # nombre de covariables
     alpha0_eZ = -(np.sum(alpha_eZ) + np.sum(alphaCross_eZ)*PX) * PX #intercept du propensity score
     alpha0_eY = -(np.sum(alpha_eY) + +np.sum(alphaCross_eY)*PX + alpha_tau) * PX #intercept de la variable d'intérêt
@@ -138,3 +144,55 @@ def genData(Nobs,alpha_tau,alpha_eZ,alpha_eY,alphaCross_eZ,alphaCross_eY):
     tau_causal = df['EY1'].mean()-df['EY0'].mean()
 
     return df, tau_pf, tau_causal
+
+#-----------------------------------------------------------
+def print_moy_strat(df):
+    # Regrouper par (X1, X2, Z) et calculer la moyenne de Y et l'effectif
+    grouped = df.groupby(['X1', 'X2', 'X3', 'X4', 'Z']).agg(
+    mean_Y=('Y', 'mean'),
+    count=('Y', 'count')
+    ).reset_index()
+
+    # Réorganiser les résultats pour avoir les colonnes séparées pour Z=0 et Z=1
+    pivoted = grouped.pivot(index=['X1', 'X2', 'X3', 'X4'], columns='Z', values=['mean_Y', 'count'])
+
+    # Renommer les colonnes pour plus de clarté
+    pivoted.columns = ['E[Y|Z=0]', 'E[Y|Z=1]', 'N(Z=0)', 'N(Z=1)']
+    pivoted = pivoted.fillna(0)  # Remplir les valeurs NaN si une combinaison (X1, X2, Z) est absente
+
+    # Calcul de la différence E[Y | Z=1] - E[Y | Z=0]
+    pivoted['Diff'] = pivoted['E[Y|Z=1]'] - pivoted['E[Y|Z=0]']
+
+    # Calcul du poids total N(Z=0) + N(Z=1)
+    pivoted['Poids'] = pivoted['N(Z=0)'] + pivoted['N(Z=1)']
+
+    # Calcul de la moyenne pondérée
+    tau_est1 = (pivoted['Diff'] * pivoted['Poids']).sum() / pivoted['Poids'].sum()
+
+    # Affichage des résultats
+    print("RESULTATS DE LA MOYENNE STRATIFIÉE :")
+    print(pivoted)
+    print("tau_estimé (OR moy. strat) =", round(tau_est1, 3))
+
+#-----------------------------------------------------------
+def print_res_sim(df):
+    tau_est2 = regLogY(df)
+    tau_est3 = regArbY(df)
+    tau_est4, e_pred = regLogE(df)
+    tau_est5, e_pred = regArbE(df)
+    print("RESULTATS DES DIFFERENTS MODELES :")
+    print("tau_estimé (OR reg. log.) =", round(tau_est2, 3))
+    print("tau_estimé (OR arb. dec.) =", round(tau_est3, 3))
+    print("tau_estimé (IPW reg.log.) =", round(tau_est4, 3))
+    print("tau_estimé (IPW arb.dec.) =", round(tau_est5, 3))
+
+    # Tracer l'histogramme propensity score
+    #plt.hist(e_pred, bins=10, edgecolor='black', range=(0, 1))  # 'bins' définit le nombre de bacs dans l'histogramme
+
+    # Ajouter des labels et un titre
+    #plt.xlabel('Valeurs')
+    #plt.ylabel('Fréquence')
+    #plt.title('Répartition des valeurs du propensity score prédit')
+
+    # Afficher l'histogramme
+    #plt.show()
