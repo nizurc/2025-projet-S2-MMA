@@ -101,11 +101,11 @@ def regArbE(df,vars_to_include = None):
     return tau_est, e_pred
 
 #-----------------------------------------------------------
-def genData(Nobs,alpha_tau,alpha_eZ,alpha_eY,alphaCross_eZ,alphaCross_eY):
-    PX = 1/2 # probabilité qu'une covariable vaille 1
+def genData(Nobs,alpha_tau,alpha_eZ,alpha_eY,alphaXCrossX_eZ,alphaXCrossX_eY,alphaXCrossZ_eY):
+    PX = 1/3 # probabilité qu'une covariable vaille 1
     NX = np.size(alpha_eZ) # nombre de covariables
-    alpha0_eZ = -(np.sum(alpha_eZ) + np.sum(alphaCross_eZ)*PX) * PX #intercept du propensity score
-    alpha0_eY = -(np.sum(alpha_eY) + +np.sum(alphaCross_eY)*PX + alpha_tau) * PX #intercept de la variable d'intérêt
+    alpha0_eZ = -(np.sum(alpha_eZ) + np.sum(alphaXCrossX_eZ)*PX) * PX #intercept du propensity score
+    alpha0_eY = -(np.sum(alpha_eY) + +np.sum(alphaXCrossX_eY)*PX + alpha_tau) * PX #intercept de la variable d'intérêt
 
     # GENERATION DES COVARIABLES X
     X = np.random.binomial(1,PX,(Nobs,NX))
@@ -114,30 +114,35 @@ def genData(Nobs,alpha_tau,alpha_eZ,alpha_eY,alphaCross_eZ,alphaCross_eY):
     effCrossZ = np.zeros(Nobs)
     for i in range(NX):
         for j in range(NX):
-            if alphaCross_eZ[i,j] != 0:
-                effCrossZ += X[:,i] * X[:,j] * alphaCross_eZ[i,j]
+            if alphaXCrossX_eZ[i,j] != 0:
+                effCrossZ += X[:,i] * X[:,j] * alphaXCrossX_eZ[i,j]
 
     # GENERATION DE Z
     eZ = sigmoid(X.dot(alpha_eZ) + effCrossZ + alpha0_eZ) # Génération du propensity score
     Z = np.random.binomial(1,eZ)
 
-    # EFFET CROISE POUR Y
-    effCrossY = np.zeros(Nobs)
+    # EFFET CROISE XxX POUR Y
+    effCrossY1 = np.zeros(Nobs)
     for i in range(NX):
         for j in range(NX):
-            if alphaCross_eY[i,j] != 0:
-                effCrossY += X[:,i] * X[:,j] * alphaCross_eY[i,j]
+            if alphaXCrossX_eY[i,j] != 0:
+                effCrossY1 += X[:,i] * X[:,j] * alphaXCrossX_eY[i,j]
+    
+    # EFFET CROISE XxZ POUR Y
+    effCrossY2 = np.zeros(Nobs)
+    for i in range(NX):
+            effCrossY2 += X[:,i] * Z * alphaXCrossZ_eY[i]
 
     # GENERATION DE Y
-    eY = sigmoid(X.dot(alpha_eY) + effCrossY + alpha_tau*Z + alpha0_eY)
+    eY = sigmoid(X.dot(alpha_eY) + effCrossY1 + effCrossY2 + alpha_tau*Z + alpha0_eY)
     Y = np.random.binomial(1,eY)
 
     # Calcul de E(Y(1)) et E(Y(0))
     Z1 = np.ones(Nobs)
     Z0 = np.zeros(Nobs)
 
-    EY1 = sigmoid(X.dot(alpha_eY) + effCrossY + alpha_tau*Z1 + alpha0_eY)
-    EY0 = sigmoid(X.dot(alpha_eY) + effCrossY + alpha_tau*Z0 + alpha0_eY)
+    EY1 = sigmoid(X.dot(alpha_eY) + effCrossY1 + effCrossY2 + alpha_tau*Z1 + alpha0_eY)
+    EY0 = sigmoid(X.dot(alpha_eY) + effCrossY1 + effCrossY2 + alpha_tau*Z0 + alpha0_eY)
 
     # MISE EN FORME DES DONNEES
     df = pd.DataFrame(X, columns=[f"X{i+1}" for i in range(NX)])  # noms des colonnes X1, X2, ...
