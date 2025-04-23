@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 
@@ -8,10 +9,13 @@ def sigmoid(x): # Définition de la fonction sigmoïde
     return 1 / (1 + np.exp(-x))
 
 #-----------------------------------------------------------
-def regLogY(df): # régréssion logistique OR
+def regLogY(df,vars_to_include = None): # régréssion logistique OR
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y','EY0','EY1'])
     Y = df['Y']
+    if vars_to_include is None:
+        X = df.drop(columns=['Y','EY0','EY1'])
+    else:
+        X = df[vars_to_include + ['Z']]
 
     # Initialiser et entraîner le modèle
     model = LogisticRegression()
@@ -31,13 +35,16 @@ def regLogY(df): # régréssion logistique OR
     return tau_est
 
 #-----------------------------------------------------------
-def regArbY(df):
+def regArbY(df,vars_to_include = None):
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y','EY0','EY1'])
     Y = df['Y']
+    if vars_to_include is None:
+        X = df.drop(columns=['Y','EY0','EY1'])
+    else:
+        X = df[vars_to_include + ['Z']]
 
     # Initialiser et entraîner le modèle
-    model = DecisionTreeClassifier(max_depth=3, random_state=0)
+    model = DecisionTreeClassifier()
     model.fit(X, Y)
 
     X1 = X.copy()
@@ -54,11 +61,14 @@ def regArbY(df):
     return tau_est
 
 #-----------------------------------------------------------
-def regLogE(df):
+def regLogE(df,vars_to_include = None):
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y','Z','EY0','EY1'])
     Z = df['Z']
     Y = df['Y']
+    if vars_to_include is None:
+        X = df.drop(columns=['Y','Z','EY0','EY1'])
+    else:
+        X = df[vars_to_include]
     
     # Initialiser et entraîner le modèle
     model = LogisticRegression()
@@ -71,11 +81,14 @@ def regLogE(df):
     return tau_est, e_pred
 
 #-----------------------------------------------------------
-def regArbE(df):
+def regArbE(df,vars_to_include = None):
     # Séparer les variables explicatives (X) et la cible (Y)
-    X = df.drop(columns=['Y','Z','EY0','EY1'])
     Z = df['Z']
     Y = df['Y']
+    if vars_to_include is None:
+        X = df.drop(columns=['Y','Z','EY0','EY1'])
+    else:
+        X = df[vars_to_include]
     
     # Initialiser et entraîner le modèle
     model = DecisionTreeClassifier()
@@ -175,16 +188,16 @@ def print_moy_strat(df):
     print("tau_estimé (OR moy. strat) =", round(tau_est1, 3))
 
 #-----------------------------------------------------------
-def print_res_sim(df):
-    tau_est2 = regLogY(df)
-    tau_est3 = regArbY(df)
-    tau_est4, e_pred = regLogE(df)
-    tau_est5, e_pred = regArbE(df)
+def print_res_sim(df,vars_to_includeY=None,vars_to_includeE=None):
+    tau_est2 = regLogY(df,vars_to_includeY)
+    tau_est3 = regArbY(df,vars_to_includeY)
+    tau_est4, e_pred = regLogE(df,vars_to_includeE)
+    tau_est5, e_pred = regArbE(df,vars_to_includeE)
     print("RESULTATS DES DIFFERENTS MODELES :")
-    print("tau_estimé (OR reg. log.) =", round(tau_est2, 3))
-    print("tau_estimé (OR arb. dec.) =", round(tau_est3, 3))
     print("tau_estimé (IPW reg.log.) =", round(tau_est4, 3))
     print("tau_estimé (IPW arb.dec.) =", round(tau_est5, 3))
+    print("tau_estimé (OR reg. log.) =", round(tau_est2, 3))
+    print("tau_estimé (OR arb. dec.) =", round(tau_est3, 3))
 
     # Tracer l'histogramme propensity score
     #plt.hist(e_pred, bins=10, edgecolor='black', range=(0, 1))  # 'bins' définit le nombre de bacs dans l'histogramme
