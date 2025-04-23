@@ -141,8 +141,13 @@ def genData(Nobs,alpha_tau,alpha_eZ,alpha_eY,alphaXCrossX_eZ,alphaXCrossX_eY,alp
     Z1 = np.ones(Nobs)
     Z0 = np.zeros(Nobs)
 
+    # EFFET CROISE XxZ POUR Y
+    effCrossY2 = np.zeros(Nobs)
+    for i in range(NX):
+            effCrossY2 += X[:,i] * 1 * alphaXCrossZ_eY[i]
+
     EY1 = sigmoid(X.dot(alpha_eY) + effCrossY1 + effCrossY2 + alpha_tau*Z1 + alpha0_eY)
-    EY0 = sigmoid(X.dot(alpha_eY) + effCrossY1 + effCrossY2 + alpha_tau*Z0 + alpha0_eY)
+    EY0 = sigmoid(X.dot(alpha_eY) + effCrossY1 + alpha_tau*Z0 + alpha0_eY)
 
     # MISE EN FORME DES DONNEES
     df = pd.DataFrame(X, columns=[f"X{i+1}" for i in range(NX)])  # noms des colonnes X1, X2, ...
