@@ -219,3 +219,69 @@ def print_res_sim(df,vars_to_includeY=None,vars_to_includeE=None):
 
     # Afficher l'histogramme
     #plt.show()
+
+#-----------------------------------------------------------
+def createSample(df):
+    Nobs = df.shape[0]  # Nombre d'observations dans le DataFrame
+    index = np.random.randint(Nobs)
+    
+    Ycolumn = df['Y']
+    EY1column = df['EY1']
+    EY0column = df['EY0']
+    Zcolumn = df['Z']
+    X1column = df['X1']
+    X2column = df['X2']
+    
+    Y = Ycolumn[index]
+    EY1 = EY1column[index]
+    EY0 = EY0column[index]
+    Z = Zcolumn[index]
+    X1 = X1column[index]
+    X2 = X2column[index]
+    
+    d1 = {'Y': [Y], 'EY1': [EY1], 'EY0': [EY0], 'Z': [Z], 'X1': [X1], 'X2': [X2]}
+    df1 = pd.DataFrame(data=d1)
+    
+    for i in range(1,Nobs):
+        index = np.random.randint(Nobs)
+        Ycolumn = df['Y']
+        EY1column = df['EY1']
+        EY0column = df['EY0']
+        Zcolumn = df['Z']
+        X1column = df['X1']
+        X2column = df['X2']
+        Y = Ycolumn[index]
+        EY1 = EY1column[index]
+        EY0 = EY0column[index]
+        Z = Zcolumn[index]
+        X1 = X1column[index]
+        X2 = X2column[index]
+        df1.loc[len(df1)] = [Y,EY1,EY0,Z,X1,X2]
+    return df1
+
+#-----------------------------------------------------------
+def calculBootstrap(df,size):
+    tausLogY = []
+    tausArbY = []
+    tausLogE = []
+    tausArbE = []
+    for i in range(size):
+        df1 = createSample(df)
+        tausLogY_est = regLogY(df1)
+        tausArbY_est = regArbY(df1)
+        tausLogE_est, e_predLogE = regLogE(df1)
+        tausArbE_est, e_predArbE = regArbE(df1)
+        tausLogY.append(tausLogY_est)
+        tausArbY.append(tausArbY_est)
+        tausLogE.append(tausLogE_est)
+        tausArbE.append(tausArbE_est)
+    niveau_alpha = 0.05
+    lbLogY = np.percentile(tausLogY,niveau_alpha*100/2)
+    ubLogY = np.percentile(tausLogY,100-niveau_alpha*100/2)
+    lbArbY = np.percentile(tausArbY,niveau_alpha*100/2)
+    ubArbY = np.percentile(tausArbY,100-niveau_alpha*100/2)
+    lbLogE = np.percentile(tausLogE,niveau_alpha*100/2)
+    ubLogE = np.percentile(tausLogE,100-niveau_alpha*100/2)
+    lbArbE = np.percentile(tausArbE,niveau_alpha*100/2)
+    ubArbE = np.percentile(tausArbE,100-niveau_alpha*100/2)
+    return lbLogY,ubLogY,lbArbY,ubArbY,lbLogE,ubLogE,lbArbE,ubArbE
